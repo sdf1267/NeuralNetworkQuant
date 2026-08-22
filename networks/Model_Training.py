@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 import torch
 
 import DataDownload # Download stock data from Yahho Finance
-import LinearModel
+import network
 
 
 class model_training():
-    def __init__(self,model,tick,start,end,interval,train_ratio,max_lags,no_epochs,lr, 
+    def __init__(self,model,tick,start,end,interval,train_ratio,max_lags,no_epochs,lr,
                  transaction_cost_bpts = 10, atol = 1e-9,
-        rtol = 1e-6,trade_signal = "sign",threshold = 0.001,verbose = False):
+        rtol = 1e-6,trade_signal = "sign",threshold = 0.001,verbose = False,
+        weight_decay = 1e-4):
         self.model = model
         self.tick = tick
         self.start = start
@@ -32,7 +33,7 @@ class model_training():
         # nn parameters
         self.LossFunction = torch.nn.MSELoss()
         # self.LossFunction = (torch.nn.BCEWithLogitsLoss()
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay = weight_decay)
         self.no_epochs = no_epochs
         self.lr = lr
         self.rtol = rtol
@@ -92,11 +93,11 @@ class model_training():
             # Targets
             T_train = torch.tensor(df_train[target].to_numpy(),dtype = torch.float32)
             T_test = torch.tensor(df_test[target].to_numpy(),dtype = torch.float32)
-            
+
             # Times for plots
             date_train = pd.to_datetime(df_train.index)
             date_test = pd.to_datetime(df_test.index)
-            
+
             return F_train, F_test, T_train, T_test, date_train, date_test
         # Get all the test and train tensors
         F_train, F_test, T_train, T_test, date_train, date_test = get_train_test_features(self.df, self.max_lags, self.train_ratio)
@@ -107,26 +108,26 @@ class model_training():
         # Which is the same as the maximun numbers of lags
         model = self.model
         F_train, F_test, T_train, T_test = self.F_train, self.F_test, self.T_train, self.T_test
-        
-        # The imput features are too small, rescale them to better fit the data 
+
+        # The imput features are too small, rescale them to better fit the data
         F_mean = F_train.mean(dim=0, keepdim=True)
         F_std = F_train.std(dim=0, keepdim=True).clamp_min(1e-8)
 
         T_mean = T_train.mean(dim=0, keepdim=True)
         T_std = T_train.std(dim=0, keepdim=True).clamp_min(1e-8)
-        
-        
-        self.T_mean = T_mean 
+
+
+        self.T_mean = T_mean
         self.T_std = T_std
         self.F_mean = F_mean
         self.F_std = F_std
-        
-        F_train_scaled = (F_train - F_mean)/F_std 
-        F_test_scaled = (F_test - F_mean)/F_std 
-        
+
+        F_train_scaled = (F_train - F_mean)/F_std
+        F_test_scaled = (F_test - F_mean)/F_std
+
         T_test_scaled = (T_test - T_mean)/T_std
         T_train_scaled = (T_train - T_mean)/T_std
-        
+
         optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
         if self.verbose:
             print("\nTraining model...")
@@ -146,11 +147,11 @@ class model_training():
             rel_loss = np.abs(train_loss-train_loss_log)/(np.abs(train_loss))
             abs_loss = np.abs(train_loss-train_loss_log)
             if rel_loss < self.rtol:
-                if self.verbose: 
+                if self.verbose:
                     print(f"Relative Tolance Reached at Epoch {epoch}")
                 break
             if abs_loss < self.atol:
-                if self.verbose: 
+                if self.verbose:
                     print(f"Relative Tolance Reached at Epoch {epoch}")
                 break
 
@@ -165,8 +166,8 @@ class model_training():
             T_hat_test = model(F_test_scaled)
             test_loss = self.LossFunction(T_hat_test, T_test_scaled).item()
             if  self.verbose:
-                print(f"Test Loss = {test_loss:.9f}")   
-                
+                print(f"Test Loss = {test_loss:.9f}")
+
     def get_MR_results(self,transaction_fees_bpts = 0):
         '''Get the trading results of a simple mean reversion (MR) stragety for comparism'''
         # if not self.model_is_trained:
@@ -174,8 +175,8 @@ class model_training():
         # # Evaluate the model
         # self.model.eval()
         # F_train, F_test, T_train, T_test = self.F_train, self.F_test, self.T_train, self.T_test
-        # F_train_scaled = (F_train - self.F_mean)/self.F_std 
-        # F_test_scaled = (F_test - self.F_mean)/self.F_std 
+        # F_train_scaled = (F_train - self.F_mean)/self.F_std
+        # F_test_scaled = (F_test - self.F_mean)/self.F_std
         # with torch.no_grad():
         #     T_train_hat = self.model(F_train_scaled) * self.T_std + self.T_mean
         #     T_hat = self.model(F_test_scaled) * self.T_std + self.T_mean
@@ -189,39 +190,39 @@ class model_training():
         # # Get predictions as numpy arrays
         # t_hat = T_hat.squeeze().numpy()
         t_test = self.T_test.squeeze().numpy() # the reference samples
-        
+
         df = pd.DataFrame({
             # "T_hat": t_hat,
             "T_test": t_test,
             })
-        
-        df["trade_log_return"] = t_test 
+
+        df["trade_log_return"] = t_test
         df["trade_log_return_lag_1"] = df["trade_log_return"].shift(1)
         df["trade_log_return_lag_max"] = df["trade_log_return"].shift(self.max_lags)
-        # Make sure that the number of elements is same as the NN results 
+        # Make sure that the number of elements is same as the NN results
         df.dropna()
-        # Signals 
+        # Signals
         df["signal"] = -np.sign(df["trade_log_return_lag_1"])
         df["turnover"] = (df["signal"] - df["signal"].shift(1,fill_value = 0)).abs()
-        df["is_won"] = (df["signal"] * df["trade_log_return"] ) > 0 
+        df["is_won"] = (df["signal"] * df["trade_log_return"] ) > 0
         transaction_fees_log = np.log1p(-transaction_fees_bpts/10_000)
         df["tx_fees"] = df["turnover"] * transaction_fees_log
-        
-        df["trade_log_return"] = (t_test)* df["signal"] + df["tx_fees"] 
+
+        df["trade_log_return"] = (t_test)* df["signal"] + df["tx_fees"]
         df['trade_log_return_cum'] = df['trade_log_return'].cumsum()
-        
+
         df["equity_log"] = df["trade_log_return"].cumsum()
         df["peak_log"] = df["equity_log"].cummax().clip(lower=0)
         df["drawdown_log"] = df["equity_log"] - df["peak_log"]
         df["drawdown_percentage"] = np.expm1(df["drawdown_log"])
-        
-        self.MR_df = df 
+
+        self.MR_df = df
 
         return
 
-    def get_trade_results(self, 
+    def get_trade_results(self,
                           trade_signal = "sign",threshold = 0.001,
-                          transaction_fees_bpts = 0, window = 60):
+                          transaction_fees_bpts = 0, window = 30):
         """Takes the trained model, and add a trade_results entery
             pd.DataFrame to self
         """
@@ -230,8 +231,8 @@ class model_training():
         # Evaluate the model
         self.model.eval()
         F_train, F_test, T_train, T_test = self.F_train, self.F_test, self.T_train, self.T_test
-        F_train_scaled = (F_train - self.F_mean)/self.F_std 
-        F_test_scaled = (F_test - self.F_mean)/self.F_std 
+        F_train_scaled = (F_train - self.F_mean)/self.F_std
+        F_test_scaled = (F_test - self.F_mean)/self.F_std
         with torch.no_grad():
             T_train_hat = self.model(F_train_scaled) * self.T_std + self.T_mean
             T_hat = self.model(F_test_scaled) * self.T_std + self.T_mean
@@ -254,25 +255,33 @@ class model_training():
             })
         if trade_signal == "sign":
             df["signal"] = np.sign(t_hat)
-        elif trade_signal == "threshold" :
-            df["signal"] = np.where(t_hat > threshold, 1, -1)
+        elif trade_signal == "threshold" : # Only trade if the signal is strong enough
+            df["signal"] = np.select(
+                [df["T_hat"] > threshold,
+                 df["T_hat"] <-threshold],[
+                    1.0, -1.0 # long, short
+                 ],
+                 default = 0.0 # hold
+            )
+        else:
+            raise ValueError("trade_signal must be either 'sign' or 'threshold' ")
         df["is_won"] = (df["signal"] * t_test) > 0
-        
-        # Compute turnover 
+
+        # Compute turnover
         df["turnover"] = (df["signal"] - df["signal"].shift(1,fill_value = 0)).abs()
         transaction_fees_log = np.log1p(-transaction_fees_bpts/10_000)
         df["tx_fees"] = df["turnover"] * transaction_fees_log
-        
-        df["trade_log_return"] = (t_test)* df["signal"] + df["tx_fees"] 
+
+        df["trade_log_return"] = (t_test)* df["signal"] + df["tx_fees"]
         df['trade_log_return_cum'] = df['trade_log_return'].cumsum()
-        
+
 
         df["equity_log"] = df["trade_log_return"].cumsum()
         df["peak_log"] = df["equity_log"].cummax().clip(lower=0)
         df["drawdown_log"] = df["equity_log"] - df["peak_log"]
         df["drawdown_percentage"] = np.expm1(df["drawdown_log"])
 
-        df["rolling_IC"] = ( # Get the rolling IC 
+        df["rolling_IC"] = ( # Get the rolling IC
             df["T_hat"].rolling(window = window, min_periods = window)
             .corr(df["T_test"])
         )
@@ -297,7 +306,7 @@ class model_training():
         equity_peak = df['trade_log_return_cum'].max()
 
         std = df['trade_log_return'].std()
-        
+
 
 
         sharpe = ev/std * np.sqrt(252) # Sharp for stocks
@@ -342,7 +351,7 @@ class model_training():
 
     def model_against_stock(self,ax):
         df = self.trade_results # The trade results
-        
+
 
         close_log_return = self.T_test.squeeze().numpy().cumsum()
         return_equity_log = df['equity_log']

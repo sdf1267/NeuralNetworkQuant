@@ -1,6 +1,3 @@
-# NeuralNetworkQuant
-Price prediction with NeuralNetwork
-=======
 # Neural Network Pricing
 Pricing prediction based on neural networks. 
 
@@ -20,3 +17,9 @@ Pricing prediction based on neural networks.
 - [ ] Does linear model (equivalent to autoregressive time series in the way I implemented) inferior to nonlinear Neural networks such as Multilayer-Perception (MLP) models? 
 - [ ] Given the same model, how much would different trading strategies changes the return? 
 - [ ] Is the number of features (number of lag days) changing the performance of the model significantly?
+
+
+---
+## Method
+
+We compare two neural
