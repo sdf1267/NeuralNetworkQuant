@@ -44,6 +44,7 @@ class model_training():
         # Acturally train the model specified
         self.train_model()
         self.get_trade_results(self.trade_signal, self.threshold, self.transaction_cost_bpts)
+        self.get_model_performance(self.trade_results)
 
 
     def get_finance_data(self):
@@ -168,29 +169,29 @@ class model_training():
                 
     def get_MR_results(self,transaction_fees_bpts = 0):
         '''Get the trading results of a simple mean reversion (MR) stragety for comparism'''
-        if not self.model_is_trained:
-            raise ValueError("Model is not trained yet")
-        # Evaluate the model
-        self.model.eval()
-        F_train, F_test, T_train, T_test = self.F_train, self.F_test, self.T_train, self.T_test
-        F_train_scaled = (F_train - self.F_mean)/self.F_std 
-        F_test_scaled = (F_test - self.F_mean)/self.F_std 
-        with torch.no_grad():
-            T_train_hat = self.model(F_train_scaled) * self.T_std + self.T_mean
-            T_hat = self.model(F_test_scaled) * self.T_std + self.T_mean
-            test_loss = self.LossFunction(T_hat, T_test)
-            train_loss = self.LossFunction(T_train_hat, T_train)
-            if self.verbose:
-                print(f"\nTest Loss = {test_loss.item():.9f}",
-                    f"\nTrain Loss = {train_loss.item():.9f}")
-        ##############
-        ##############
-        # Get predictions as numpy arrays
-        t_hat = T_hat.squeeze().numpy()
-        t_test = T_test.squeeze().numpy() # the reference samples
+        # if not self.model_is_trained:
+        #     raise ValueError("Model is not trained yet")
+        # # Evaluate the model
+        # self.model.eval()
+        # F_train, F_test, T_train, T_test = self.F_train, self.F_test, self.T_train, self.T_test
+        # F_train_scaled = (F_train - self.F_mean)/self.F_std 
+        # F_test_scaled = (F_test - self.F_mean)/self.F_std 
+        # with torch.no_grad():
+        #     T_train_hat = self.model(F_train_scaled) * self.T_std + self.T_mean
+        #     T_hat = self.model(F_test_scaled) * self.T_std + self.T_mean
+        #     test_loss = self.LossFunction(T_hat, T_test)
+        #     train_loss = self.LossFunction(T_train_hat, T_train)
+        #     if self.verbose:
+        #         print(f"\nTest Loss = {test_loss.item():.9f}",
+        #             f"\nTrain Loss = {train_loss.item():.9f}")
+        # ##############
+        # ##############
+        # # Get predictions as numpy arrays
+        # t_hat = T_hat.squeeze().numpy()
+        t_test = self.T_test.squeeze().numpy() # the reference samples
         
         df = pd.DataFrame({
-            "T_hat": t_hat,
+            # "T_hat": t_hat,
             "T_test": t_test,
             })
         
@@ -220,7 +221,7 @@ class model_training():
 
     def get_trade_results(self, 
                           trade_signal = "sign",threshold = 0.001,
-                          transaction_fees_bpts = 0):
+                          transaction_fees_bpts = 0, window = 60):
         """Takes the trained model, and add a trade_results entery
             pd.DataFrame to self
         """
@@ -270,6 +271,11 @@ class model_training():
         df["peak_log"] = df["equity_log"].cummax().clip(lower=0)
         df["drawdown_log"] = df["equity_log"] - df["peak_log"]
         df["drawdown_percentage"] = np.expm1(df["drawdown_log"])
+
+        df["rolling_IC"] = ( # Get the rolling IC 
+            df["T_hat"].rolling(window = window, min_periods = window)
+            .corr(df["T_test"])
+        )
         self.trade_results = df
 
     def get_model_performance(self,df):
@@ -291,6 +297,8 @@ class model_training():
         equity_peak = df['trade_log_return_cum'].max()
 
         std = df['trade_log_return'].std()
+        
+
 
         sharpe = ev/std * np.sqrt(252) # Sharp for stocks
         sharpe_crypto = ev/std * np.sqrt(365) # Sharpe for cryptos
