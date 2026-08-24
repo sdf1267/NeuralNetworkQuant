@@ -8,14 +8,13 @@ import matplotlib.pyplot as plt
 import torch
 
 import DataDownload # Download stock data from Yahho Finance
-import network
 
 
 class model_training():
     def __init__(self,model,tick,start,end,interval,train_ratio,max_lags,no_epochs,lr,
                  transaction_cost_bpts = 10, atol = 1e-9,
         rtol = 1e-6,trade_signal = "sign",threshold = 0.001,verbose = False,
-        weight_decay = 1e-4):
+        weight_decay = 1e-4, rolling_window = 15):
         self.model = model
         self.tick = tick
         self.start = start
@@ -28,7 +27,7 @@ class model_training():
         self.verbose = verbose
         # Transaction costs, in base points
         self.transaction_cost_bpts = transaction_cost_bpts
-
+        self.rolling_window = rolling_window
 
         # nn parameters
         self.LossFunction = torch.nn.MSELoss()
@@ -44,8 +43,9 @@ class model_training():
         self.prepare_lag_test_data_tensors()
         # Acturally train the model specified
         self.train_model()
-        self.get_trade_results(self.trade_signal, self.threshold, self.transaction_cost_bpts)
-        self.get_model_performance(self.trade_results)
+        self.get_trade_results(self.trade_signal, self.threshold, self.transaction_cost_bpts,
+                               window = self.rolling_window)
+        # self.get_model_performance(self.trade_results)
 
 
     def get_finance_data(self):
@@ -277,7 +277,7 @@ class model_training():
 
 
         df["equity_log"] = df["trade_log_return"].cumsum()
-        df["peak_log"] = df["equity_log"].cummax().clip(lower=0)
+        df["peak_log"] = df["equity_log"].cummax()
         df["drawdown_log"] = df["equity_log"] - df["peak_log"]
         df["drawdown_percentage"] = np.expm1(df["drawdown_log"])
 
