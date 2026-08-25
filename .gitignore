@@ -1,5 +1,5 @@
 #
-/scripts
+forward_validation/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

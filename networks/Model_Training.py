@@ -306,6 +306,14 @@ class model_training():
         equity_peak = df['trade_log_return_cum'].max()
 
         std = df['trade_log_return'].std()
+        pearson_ic = df["T_hat"].corr(
+                df["T_test"],
+                method="pearson",
+            )
+        spearman_ic = df["T_hat"].corr(
+                df["T_test"],
+                method="spearman",
+            )
 
 
 
@@ -328,6 +336,8 @@ class model_training():
             "return_std": std,
             "annualized_sharpe_stocks": sharpe,
             "annualized_sharpe_crypto": sharpe_crypto,
+            "pearson_ic": pearson_ic,
+            "spearman_ic": spearman_ic
         }])
 
         # print(

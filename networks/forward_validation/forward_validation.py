@@ -145,7 +145,7 @@ def data_analysis(
     fold['trade_log_return'] = (fold['T_test'])* fold["signal"] + tx_fees
     active = fold['signal'] !=0
     equity = fold['trade_log_return'].cumsum()
-    drawdown = (equity - equity.cummax())
+    drawdown = (equity - equity.cummax().clip(lower=0))
     
     zero_mse = np.mean(actual**2)
     model_mse = np.mean((actual-predictions)**2)
