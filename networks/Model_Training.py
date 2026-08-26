@@ -133,7 +133,7 @@ class model_training():
         T_test_scaled = (T_test - T_mean)/T_std
         T_train_scaled = (T_train - T_mean)/T_std
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
+        optimizer = self.optimizer
         if self.verbose:
             print("\nTraining model...")
         train_loss_log = 0

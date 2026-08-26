@@ -23,6 +23,57 @@ Potential extension of this project is as follows:
 - [x] Close-to-close log return forecasting with NN 
 - [x] Extend to nonlinear models
 
+## Installation  
+
+Clone the repository:
+```bash
+git clone https://github.com/sdf1267/NeuralNetworkQuant.git
+cd "NeuralNetwork Pricing"
+```
+
+Then create a virtual enviroment:
+```bash
+python3 -m venv .venv
+```
+
+Activate it:
+
+**macOS/Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Install the project with:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[notebook]"
+```
+and verify with:
+
+```bash
+python -c "import numpy, pandas, matplotlib, torch, yfinance, scipy; print('Installation successful')"
+```
+
+### Quick installation for macOS:
+
+```bash
+git clone https://github.com/sdf1267/NeuralNetworkQuant.git
+cd "NeuralNetwork Pricing"
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[notebook]"
+python -m jupyter lab
+```
+
 
 > ## Reproducing figures 
 > Open `reproduce_graphs.ipynb` and click `Run All`. The default option will reproduce the figures 
