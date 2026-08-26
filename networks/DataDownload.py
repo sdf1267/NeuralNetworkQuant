@@ -29,7 +29,7 @@ def download_one_data(
     end: str,
     interval: str,
 ):
-    data = yf.download(symbol, start=start, end=end, interval=interval)
+    data = yf.download(symbol, start=start, end=end, interval=interval,progress=False)
     data["close_log_return"] = np.log(data[("Close",symbol)]) - np.log(data[("Close",symbol)].shift(1))
     data["close_cumulative_log_return"] =  data["close_log_return"].cumsum()
     data["open_close_log_diff"] = np.log(data[("Open",symbol)]) - np.log(data[("Close",symbol)].shift(1))

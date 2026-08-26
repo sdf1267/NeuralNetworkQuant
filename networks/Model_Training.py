@@ -14,7 +14,7 @@ class model_training():
     def __init__(self,model,tick,start,end,interval,train_ratio,max_lags,no_epochs,lr,
                  transaction_cost_bpts = 10, atol = 1e-9,
         rtol = 1e-6,trade_signal = "sign",threshold = 0.001,verbose = False,
-        weight_decay = 1e-4, rolling_window = 15):
+        weight_decay = 1e-4, rolling_window = 15, data=None):
         self.model = model
         self.tick = tick
         self.start = start
@@ -39,7 +39,12 @@ class model_training():
         self.atol = atol
         self.model_is_trained = False
 
-        self.df = self.get_finance_data()
+        self.df = (
+            data.copy()
+            if data is not None
+            else self.get_finance_data()
+        )
+        
         self.prepare_lag_test_data_tensors()
         # Acturally train the model specified
         self.train_model()

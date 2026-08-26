@@ -1,27 +1,31 @@
 
 
-# Neural Network Pricing
+# Log-return forecasting: Comparing Linear and Nonlinear Neural Networks
 
-This is a simple, exploratory research on Neural networks (NN) and their applicability to market predictions. We investigate how much information a NN could learn from just lookback data---feeding the NN with data of previous prices of a certain asset, and predict the price at the next timestep. 
 
-We will compare a simple linear model and a MultiLayper Perceptron (MLP) model to investigate if nonlinearity improves model performance. Specifically, we test the model on three assets `AAPL`, `BTC-USD`, and the `S&P500`. We conclude that Linear models could potentially perform well in BTC, but not in the others; while MLP models are more random, and mostly fitting the noise in the data. 
 
-This work is exploratory. While we conclude that Linear models could outperform MLP models in certain assets, it also reveals that lookback data along is insufficient---it leaves the MLP models with substantial seed dependencies; in other words, the input features could not reliably train the MLP models. 
+This is a simple, exploratory research on Neural networks (NN) and their applicability to market predictions. We investigate how much information a NN could learn from the lagged log return.
+
+We will compare a simple linear model and a Multilayer Perceptron (MLP) model to investigate if nonlinearity improves model performance. Specifically, we test the model on three assets `AAPL`, `BTC-USD`, and the `S&P500`. We conclude that Linear models could potentially perform well in BTC, but not in the others; while MLP models disperse across seed choice of initializations, consistent with a weak signal from the history of close-to-close log returns.
+
+This work is exploratory. While we conclude that Linear models could outperform MLP models in certain assets, it in no way suggests that MLP is inherently inferior to a Linear model. Instead, one should interpret the finding of this work as revealing the inadequacy of predicting log return using solely the previous log returns of the corresponding asset---potentially more information is needed to train MLP models.
 
 Potential extension of this project is as follows:
 1. Forward validation of the Linear models
-2. Adding more input features, including the HLOC prices, not only the close price.
-3. Investigate the performance of other type of regression, such as Ridge regression with hyperparameters. 
-4. Other more complex trading strategy: We use only the sign of the predictions $\text{sign}(\hat{r})$. More information could potentially be drawn from the data.
+2. Adding more input features, including the OHLC prices, not only the close price.
+3. Investigate the performance other regression methods, such as Ridge regression with hyperparameters. 
+4. Other more complex trading strategy: We use only the sign of $\text{sign}(\hat{r})$. More information could potentially be drawn from the data. 
 --- 
 
 ## Planned Features
 
 - [x] Linear model NN model for training 
-- [x] Predict stock prices with NN 
+- [x] Close-to-close log return forecasting with NN 
 - [x] Extend to nonlinear models
 
----
+
+> ## Reproducing figures 
+> Open `reproduce_graphs.ipynb` and click `Run All`. The default option will reproduce the figures 
 
 ## Research Questions:
 - [x] Could Neural network perform better than simple strategies such as mean reversion? *depends*
@@ -29,8 +33,6 @@ Potential extension of this project is as follows:
 - [x] Given the same model, how much would different trading strategies changes the return? *yes*
 - [x] Is the number of features (number of lag days) changing the performance of the model significantly? *yes*
 
-
----
 ## Method
 
 We compare two Neural networks. Let $X_{t}$ be the asset price at time $t$, and $r_{t} = \ln \left( \frac{X_{t}}{X_{t-1}} \right)$ be the trade log return at time $t$. 
@@ -42,7 +44,7 @@ $$
 Lin: \underbrace{ \left(r_{t-1}, r_{t-2}\dots  \right)  }_{ n \text{ elements} } \rightarrow r_{t}\, , 
 $$
 
-this is equivalent to a autoregressive model $AR(n)$ on the log return $r_{t}$ without the noise term: 
+We define $n$ as the _lookbacks_. This is equivalent to an autoregressive model $AR(n)$ on the log return $r_{t}$ without the noise term: 
 $$
 \hat{r}_{t} = \sum_{i=1}^{n} \phi_{i}r_{t-i} + c\, , 
 $$
@@ -55,18 +57,18 @@ The second model is again a NN, but instead of a single layer, we use a Multilay
 
 
 
-### Data analysis
-In training the model, we will split the data for training and testing. 
+<!-- ### Data analysis
+In training the model, we will split the data for training and testing. We divide the data chronologically into 75% for training and 25% for testing. Since the seeds of  -->
 
 ### Strategy
-We employ a very simple strategy. Our model takes a set of $n$ lagged data and predicts the next possible price. However, it is found that the model cannot give accurate prediction on the _magnitude_ of the price. We therefore use the model to bet on the _direction_. 
+We employ a very simple strategy. Our model takes a set of $n$ lagged data and predicts the next possible price and focus on the __direction__:
 
-1. *sign strategy*:  we use the signal $s_{t}$:
+ * **sign strategy**:  we use the signal $s_{t}$:
 $$
 s_{t} = \text{sign}(\hat{r}_{t})
 $$
-where $\hat{r}_{t}$ is the log return predicted by the models. 
-2. *threshold strategy*: Another possibility for the signal is to set: 
+where $\hat{r}_{t}$ is the log return predicted by the models. In other words, we only take the direction of  $\hat{r}$ and discard the magnitude from the forecasting.
+<!-- 2. *threshold strategy*: Another possibility for the signal is to set: 
 	 $$
 	s_{t} = \begin{cases}
 	+1  &  \hat{r}_{t} > \epsilon  & \text{long}\\
@@ -74,64 +76,71 @@ where $\hat{r}_{t}$ is the log return predicted by the models.
 	0  &  \text{otherwise} & \text{hold}
 	\end{cases}	
 	$$
-	here $\epsilon$ is the *threshold*. 
+	here $\epsilon$ is the *threshold*.  -->
 
-We also have a benchmark strategy, which is a simplified version of mean-reversion strategy:
+<!-- We also have a benchmark strategy, which is a simplified version of mean-reversion strategy:
 	3. *mean reversion*: A simple strategy for benchmarking:
 		$$
 		s_{t} = -\text{sign}(r_{t-1})
 		$$
-		that is, we bet that the price will move opposite to the previous date.
+		that is, we bet that the price will move opposite to the previous date. -->
 
----
+> [!IMPORTANT]
+> This is an exploratory work of a complex problem that I will not dare to say that I have solved. Instead, this work merely suggests that some profitability could be generated from linear NNs, despite the strong dependencies on the initialization seeds.
 ## Results
-It is found that, for any number of input data, a prediction based on simply the previous stock value is not enough. This is signified by 1. A strong dependence of the strategy return on the choice of seeds:
+We conclude that the history of individual stock is insufficient for accurate price predictions. While in some asset the Linear model could yield some edge of profitability, the model becomes invalid for other assets. 
+
+Specifically, we have discovered that models have strong dependence on the seed of the random number generators:
 
 ### Seed dependence 
-We predict stock price with the daily closing price of `AAPL`  
-1. `seed = 32`
-		![alt text](image-6.png)
+We forecast the close-to-close log return price of `AAPL`  with transaction cost of 10 basis points and with the __sign strategy__:
+1. `seed = 15`
+		![alt text](image-7.png)
 2. `seed = 55`
-        ![alt text](image-5.png)
+        ![alt text](image-8.png)
 		
 
 These observations lead us to the folder `networks/average_over_seeds` where we average over randomly chosen seeds to obtain the performance.
 
-## Seeds averaging
-We average over $50$ seeds, randomly chosen from $[0,10000]$, to obtain the averaged performance of the model. It is found that the model depends strongly on the lookbacks and the stock of choice. We will post the result for the best performing lookback over time, and later analyse the model benchmarks across different stocks (or crypto currencies).
+### Seeds averaging
+We average over $50$ seeds, randomly chosen from $[0,10000]$, to obtain the averaged performance of the model. We have transaction cost of 10 basis points. We use the close price of the assets from `2019-01-01` to `2026-01-01`, and train on $75\%$ of the data and test on the rest. 
 
-We use the close price of the assets from `2019-01-01` to `2026-01-01`, and train on $75\%$ of the data and test on the rest. 
+Let _lookbacks_ be the number of days the NN has access to prior to the forecast date. Thus, `lookbacks=5` means the model input feature is the 5-day close-log-return. We found that the model depends strongly on the lookbacks and the stock of choice. 
 
 
 ### The case of Bitcoin:
-![BTC Results](image.png)
-where `lookback` is the length of history (in days) that the model have access to. It is the data number we feed to the model. 
+![alt text](image-9.png)
 
-It is found that MLP has much larger standard deviation across seeds averaging, this may suggest that MLP model needs more data input to reliably obtain model parameters. 
+We found that MLP has much larger standard deviation across seeds averaging, this may suggest that MLP model needs more data input to reliably obtain model parameters. 
 
 Interestingly, for Bitcoin `BTC-USD`, linear model outperforms MLP significantly. We also have:
 ![BTC Benchmark](networks/average_over_seeds/results/BTC/benchmark_BTC.png)
 we see that in most benchmarks, linear model beats the MLP model. In particular, we have 
-    1. Pearson and Spearman IC have a small but consistent positive edge.
-    2. The linear model has a consistent positive annualized Sharpe ratio (note $\sigma_{annualized} = \sqrt{365}\sigma$ since we have Bitcoin). 
-    3. While Linear model has a lower win rate, which is the number of times when $\text{sign}({\hat{r}_t}) = \text{sign}({r_t})$
 
-However, I have to emphasize that the model does not win in all other stocks. 
+1. Pearson and Spearman IC have a small but consistent positive edge.
+2. The linear model has a consistent positive annualized Sharpe ratio (note $\sigma_{annualized} = \sqrt{365}\sigma$ since we have Bitcoin). 
+3. While Linear model has a lower win rate, which is the number of times when $\text{sign}({\hat{r}_t}) = \text{sign}({r_t})$, the average winning return is larger than the average losing return, leading to a positive total return.
 
-## The case of Apple stock `AAPL`
-The return is very bad for Linear model in this case: 
+This benchmark suggests that a linear model could produce edge of profitability that survives the assumed transaction costs (10 basis points) within the test period. However, this should be interpreted as elementary results that require further investigation rather than signs of consistent profitability.
 
-![](image-1.png)
-we see clearly that the Linear model loses money and to the underlying stock badly. The benchmarks are:
+__However, I have to emphasize that the model does not consistently generate revenue in all assets.__
+
+### The case of Apple stock `AAPL`
+For `AAPL`, both models perform significantly worse than `BTC` and consistently underperform the underlying asset.
+
+![alt text](image-10.png)
+The benchmarks are:
 ![](networks/average_over_seeds/results/AAPL/benchmark_BTC.png)
 
 Here the Linear model has a significantly worse win rate against the MLP model. Similar behaviours can be seen in the S&P500: 
-## The case of the S&P500 
-![](image-2.png)
+### The case of the S&P500 
+![alt text](image-11.png)
 
 ![alt text](networks/average_over_seeds/results/SNP/benchmark_SNP.png)
 which is again an example of Linear model underperforming the MLP
 
+## Conclusions
 
+We found that, while a MLP model contains more parameters and nonlinearity than a Linear model, the additional degrees of freedom do not translate to a better performance.
 
-
+Note that, in no way does this study suggest that MLP model is inferior. Instead, what we discovered is that hisotry of lagged returns of a single asset alone is insufficient to train a reliable model. 
